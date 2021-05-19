@@ -6,48 +6,79 @@
       </header>
 
       <main class="main">
-        <form class="register">
+        <form
+          class="register"
+          @submit.prevent="targetTodo.id ? editTodo() : addTodo()">
           <div class="register__input">
             <p class="register__input__title">やることのタイトル</p>
             <input
+              v-model="targetTodo.title"
               type="text"
               name="title"
               placeholder="ここにTODOのタイトルを記入してください"
+              required
             >
           </div>
           <div class="register__input">
             <p class="register__input__title">やることの内容</p>
             <textarea
+              v-model="targetTodo.detail"
               name="detail"
               rows="3"
               placeholder="ここにTODOの内容を記入してください。改行は半角スペースに変換されます。"
+              required
             />
           </div>
           <div class="register__submit">
             <button class="register__submit__btn" type="submit" name="button">
-              登録する
+              <template v-if="targetTodo.id">
+                <span>変更する</span>
+              </template>
+              <template v-else>
+                <span>登録する</span>
+              </template>
             </button>
           </div>
         </form>
 
+        <div v-if="errorMessage" class="error">
+          <p class="error__text">{{ errorMessage }}</p>
+        </div>
+
         <div class="todos">
-          <ul class="todos__list">
-            <li>
-              <div class="todos__inner">
-                <div class="todos__completed">
-                  <button class="todos__completed__btn" type="button">未完了</button>
+          <template v-if="todos.length">
+            <ul class="todos__list">
+              <li v-for="todo in todos" :key="todo.id">
+                <div class="todos__inner">
+                  <div class="todos__completed">
+                    <button
+                      class="todos__completed__btn"
+                      type="button"
+                      @click="changeCompleted(todo)"
+                    >
+                      未完了
+                    </button>
+                  </div>
+                  <div class="todos__desc">
+                    <h2 class="todos__desc__title">{{  todo.title }}</h2>
+                    <p class="todos__desc__detail">{{  todo.detail  }}</p>
+                  </div>
+                  <div class="todos__btn">
+                    <button
+                      class="todos__btn__edit"
+                      type="button"
+                      @click="showEditor(todo)"
+                    >編集</button>
+                    <button class="todos__btn__delete" type="button">削除</button>
+                  </div>
                 </div>
-                <div class="todos__desc">
-                  <h2 class="todos__desc__title">ここにはTodoのタイトルが入ります</h2>
-                  <p class="todos__desc__detail">ここにはTodoの内容が入ります</p>
-                </div>
-                <div class="todos__btn">
-                  <button class="todos__btn__edit" type="button">編集</button>
-                  <button class="todos__btn__delete" type="button">削除</button>
-                </div>
-              </div>
-            </li>
-          </ul>
+              </li>
+            </ul>
+          </template>
+
+          <template v-else>
+            <p class="__empty">やることリストには何も登録されていません。</p>
+          </template>
         </div>
       </main>
 
@@ -61,18 +92,99 @@
 </template>
 
 <script>
+import axios from 'axios';
+
 export default {
   data() {
     return {
-      todos: [
-        // {
-        //   id: 1,
-        //   title: 'タイトル 01',
-        //   detail: '詳細 01',
-        //   completed: false,
-        // },
-      ],
+      todos: [],
+      targetTodo: {
+        id: null,
+        title: '',
+        detail: '',
+        completed: false,
+      },
+      errorMessage: '',
     };
+  },
+
+  created() {
+  axios.get('http://localhost:3000/api/todos/').then(({ data }) => {
+    this.todos = data.todos.reverse();
+    }).catch((err) => {
+      if (err.response) {
+        this.errorMessage = err.response.data.message;
+      } else {
+        this.errorMessage = 'ネットに接続がされていない、もしくはサーバーとの接続がされていません。ご確認ください。';
+      }
+    });
+  },
+  methods: {
+    addTodo() {
+      const postTodo = Object.assign({}, {
+        title: this.targetTodo.title,
+        detail: this.targetTodo.detail,
+      });
+      axios.post('http://localhost:3000/api/todos/', postTodo).then(({ data }) => {
+        this.todos.unshift(data);
+        this.targetTodo = Object.assign({}, this.targetTodo, { title: '', detail: ''});
+        this.errorMessage = '';
+      }).catch((err) => {
+        if(err.response) {
+          this.errorMessage = err.response.data.message;
+        } else {
+          this.errorMessage = 'ネットに接続がされていない、もしくはサーバーとの接続がされていません。ご確認ください。';
+        };
+      });
+    },
+    showEditor(todo) {
+      this.targetTodo = Object.assign({}, todo);
+    },
+    editTodo() {
+      const targetTodo = this.todos.find(todo => todo.id === this.targetTodo.id);
+      if(
+        targetTodo.title === this.targetTodo.title
+        && targetTodo.detail === this.targetTodo.detail
+      ) {
+        this.targetTodo = {
+          id: null,
+          title: '',
+          detail: '',
+          completed: false,
+        };
+        return;
+      }
+      axios.patch(`http://localhost:3000/api/todos/${this.targetTodo.id}`, {
+        title: this.targetTodo.title,
+        detail: this.targetTodo.detail,
+      }).then(({ data }) => {
+        this.todos = this.todos.map((todo) => {
+          if (todo.id === this.targetTodo.id) return data;
+          return todo;
+        });
+        this.targetTodo = {
+          id: null,
+          title: '',
+          detail: '',
+          completed: false,
+        };
+        this.errorMessage = '';
+      }).catch((err) => {
+        if (err.response) {
+          this.errorMessage = err.response.data.message;
+        } else {
+          this.errorMessage = 'ネットに接続がされていない、もしくはサーバーとの接続がされていません。ご確認ください。';
+        }
+      });
+    },
+    changeCompleted(id) {
+      this.targetTodo = {
+        id: null,
+        title: '',
+        detail: '',
+        completed: false,
+      };
+    },
   },
 };
 </script>
