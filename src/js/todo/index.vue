@@ -8,7 +8,7 @@
       <main class="main">
         <form
           class="register"
-          @submit.prevent="targetTodo.id ? editTodo() : addTodo()">
+          @submit.prevent="addTodo">
           <div class="register__input">
             <p class="register__input__title">やることのタイトル</p>
             <input
@@ -48,7 +48,11 @@
         <div class="todos">
           <template v-if="todos.length">
             <ul class="todos__list">
-              <li v-for="todo in todos" :key="todo.id">
+              <li
+                v-for="todo in todos"
+                :key="todo.id"
+                :class="todo.completed ? 'is-completed': ''"
+              >
                 <div class="todos__inner">
                   <div class="todos__completed">
                     <button
@@ -56,7 +60,12 @@
                       type="button"
                       @click="changeCompleted(todo)"
                     >
-                      未完了
+                      <template v-if="todo.completed">
+                        <span>完了</span>
+                      </template>
+                      <template v-else>
+                        <span>未完了</span>
+                      </template>
                     </button>
                   </div>
                   <div class="todos__desc">
@@ -69,7 +78,11 @@
                       type="button"
                       @click="showEditor(todo)"
                     >編集</button>
-                    <button class="todos__btn__delete" type="button">削除</button>
+                    <button
+                      class="todos__btn__delete"
+                      type="button"
+                      @click="deleteTodo(todo)"
+                    >削除</button>
                   </div>
                 </div>
               </li>
@@ -77,15 +90,15 @@
           </template>
 
           <template v-else>
-            <p class="__empty">やることリストには何も登録されていません。</p>
+            <p class="todos__empty">やることリストには何も登録されていません。</p>
           </template>
         </div>
       </main>
 
       <footer class="footer">
-        <p>全項目数: 0</p>
-        <p>完了済: 0</p>
-        <p>未完了: 0</p>
+        <p>全項目数: {{ todos.length }}</p>
+        <p>完了済: {{ todos.filter(todo => todo.completed).length }}</p>
+        <p>未完了: {{ todos.filter(todo => !todo.completed).length }}</p>
       </footer>
     </div>
   </div>
@@ -177,13 +190,26 @@ export default {
         }
       });
     },
-    changeCompleted(id) {
-      this.targetTodo = {
-        id: null,
-        title: '',
-        detail: '',
-        completed: false,
-      };
+    changeCompleted(todo) {
+      const targetTodo = Object.assign({}, todo);
+      axios.patch(`http://localhost:3000/api/todos/${targetTodo.id}`, {
+        completed: !targetTodo.completed,
+      }).then(({ data }) => {
+        this.todos = this.todos.map((todoItem) => {
+          if (todoItem.id === targetTodo.id) return data;
+          return todoItem;
+        });
+        this.errorMessage = '';
+      }).catch((err) => {
+        if (err.response) {
+          this.errorMessage = err.response.data.message;
+        } else {
+          this.errorMessage = 'ネットに接続がされていない、もしくはサーバーとの接続がされていません。ご確認ください。'
+        }
+      })
+    },
+    deleteTodo(id) {
+      console.log(id);
     },
   },
 };
