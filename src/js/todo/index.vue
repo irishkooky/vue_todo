@@ -81,7 +81,7 @@
                     <button
                       class="todos__btn__delete"
                       type="button"
-                      @click="deleteTodo(todo)"
+                      @click="deleteTodo(todo.id)"
                     >削除</button>
                   </div>
                 </div>
@@ -208,8 +208,17 @@ export default {
         }
       })
     },
-    deleteTodo(id) {
-      console.log(id);
+    deleteTodo(ss) {
+      axios.delete(`http://localhost:3000/api/todos/${ss}`).then(({data}) => {
+        this.todos = data.todos.reverse();
+        this.errorMessage = '';
+      }).catch((err) => {
+        if (err.response) {
+          this.errorMessage = err.response.data.message;
+        } else {
+          this.errorMessage = 'ネットに接続がされていない、もしくはサーバーとの接続がされていません。ご確認ください。';
+        }
+      });
     },
   },
 };
