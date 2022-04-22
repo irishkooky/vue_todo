@@ -8,7 +8,8 @@
       <main class="main">
         <form
           class="register"
-          @submit.prevent="addTodo">
+          @submit.prevent="targetTodo.id ? editTodo() : addTodo()"
+        >
           <div class="register__input">
             <p class="register__input__title">やることのタイトル</p>
             <input
@@ -77,7 +78,9 @@
                       class="todos__btn__edit"
                       type="button"
                       @click="showEditor(todo)"
-                    >編集</button>
+                    >
+                      編集
+                    </button>
                     <button
                       class="todos__btn__delete"
                       type="button"
@@ -150,12 +153,30 @@ export default {
         };
       });
     },
+    changeCompleted(todo) {
+      const targetTodo = Object.assign({}, todo);
+      axios.patch(`http://localhost:3000/api/todos/${targetTodo.id}`, {
+        completed: !targetTodo.completed,
+      }).then(({ data }) => {
+        this.todos = this.todos.map((todoItem) => {
+          if (todoItem.id === targetTodo.id) return data;
+          return todoItem;
+        });
+        this.errorMessage = '';
+      }).catch((err) => {
+        if (err.response) {
+          this.errorMessage = err.response.data.message;
+        } else {
+          this.errorMessage = 'ネットに接続がされていない、もしくはサーバーとの接続がされていません。ご確認ください。'
+        }
+      })
+    },
     showEditor(todo) {
       this.targetTodo = Object.assign({}, todo);
     },
     editTodo() {
       const targetTodo = this.todos.find(todo => todo.id === this.targetTodo.id);
-      if(
+      if (
         targetTodo.title === this.targetTodo.title
         && targetTodo.detail === this.targetTodo.detail
       ) {
@@ -164,13 +185,12 @@ export default {
           title: '',
           detail: '',
           completed: false,
-        };
-        return;
+        }
       }
-      axios.patch(`http://localhost:3000/api/todos/${this.targetTodo.id}`, {
+      axios.patch(`http://localhost3000/api/todos/${this.targetTodo.id}`, {
         title: this.targetTodo.title,
         detail: this.targetTodo.detail,
-      }).then(({ data }) => {
+      }).then(({data}) => {
         this.todos = this.todos.map((todo) => {
           if (todo.id === this.targetTodo.id) return data;
           return todo;
@@ -189,24 +209,6 @@ export default {
           this.errorMessage = 'ネットに接続がされていない、もしくはサーバーとの接続がされていません。ご確認ください。';
         }
       });
-    },
-    changeCompleted(todo) {
-      const targetTodo = Object.assign({}, todo);
-      axios.patch(`http://localhost:3000/api/todos/${targetTodo.id}`, {
-        completed: !targetTodo.completed,
-      }).then(({ data }) => {
-        this.todos = this.todos.map((todoItem) => {
-          if (todoItem.id === targetTodo.id) return data;
-          return todoItem;
-        });
-        this.errorMessage = '';
-      }).catch((err) => {
-        if (err.response) {
-          this.errorMessage = err.response.data.message;
-        } else {
-          this.errorMessage = 'ネットに接続がされていない、もしくはサーバーとの接続がされていません。ご確認ください。'
-        }
-      })
     },
     deleteTodo(ss) {
       axios.delete(`http://localhost:3000/api/todos/${ss}`).then(({data}) => {
